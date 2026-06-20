@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>Mileage Tracker</title>
+
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Mileage" />
+<meta name="theme-color" content="#1B2A41" />
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBBMK3k_4o70MupK4YzD535Ltfc0vpOQVY&loading=async" async defer></script>
+
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%231B2A41'/%3E%3Ccircle cx='90' cy='75' r='8' fill='%234A7C7C'/%3E%3Cpath d='M90 75 L60 110 L120 110 Z' fill='none' stroke='%23FAF8F4' stroke-width='4' stroke-linejoin='round'/%3E%3Ccircle cx='60' cy='110' r='6' fill='%23FAF8F4'/%3E%3Ccircle cx='120' cy='110' r='6' fill='%23FAF8F4'/%3E%3Ctext x='90' y='148' font-family='Georgia,serif' font-size='22' font-weight='600' fill='%23FAF8F4' text-anchor='middle'%3EMiles%3C/text%3E%3C/svg%3E" />
+
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  @font-face {
+    font-family: 'SystemSerif';
+    src: local('Georgia');
+  }
+  html, body {
+    margin: 0; padding: 0;
+    background: #1B2A41;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    overscroll-behavior-y: none;
+  }
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    min-height: 100vh;
+    background: #FAF8F4;
+  }
+  input, textarea, button { font-family: inherit; }
+  input[type="date"] { -webkit-appearance: none; }
+  button { cursor: pointer; }
+
+  #root { min-height: 100vh; }
+
+  .mt-wrap { background: #FAF8F4; color: #1B2A41; min-height: 100vh; max-width: 760px; margin: 0 auto; }
+  .mt-serif { font-family: Georgia, 'Times New Roman', serif; }
+
+  .mt-header { position: relative; overflow: hidden; padding: 24px 20px 18px; background: #1B2A41; color: #FAF8F4; }
+  .mt-header .ring1 { position:absolute; right:-40px; top:-40px; width:160px; height:160px; border-radius:50%; border:1px solid rgba(250,248,244,0.08); }
+  .mt-header .ring2 { position:absolute; right:10px; top:30px; width:90px; height:90px; border-radius:50%; border:1px solid rgba(250,248,244,0.08); }
+  .mt-eyebrow { font-size:10.5px; letter-spacing:0.12em; text-transform:uppercase; color:#4A7C7C; font-weight:600; margin-bottom:5px; }
+  .mt-title { font-size:25px; font-weight:600; margin:0; }
+  .mt-sub { color:#8B93A0; font-size:12.5px; margin-top:5px; }
+
+  .mt-body { padding: 18px 16px 90px; }
+  .mt-section-label { font-size:10.5px; letter-spacing:0.1em; text-transform:uppercase; color:#5B6470; font-weight:600; margin:0 0 10px; }
+
+  .mt-home-box { background:#fff; border:1px solid #E0DACC; border-radius:10px; padding:14px 16px; margin-bottom:18px; }
+  .mt-home-row { display:flex; align-items:center; gap:10px; }
+  .mt-home-input { flex:1; border:none; background:transparent; font-size:14px; color:#1B2A41; outline:none; padding:4px 0; min-width:0; }
+  .mt-home-input::placeholder { color:#8B93A0; }
+  .mt-home-saved { font-size:11.5px; color:#3A6363; margin-top:2px; }
+
+  .mt-summary-bar { display:flex; gap:8px; margin-bottom:16px; }
+  .mt-summary-chip { flex:1; background:#F1EDE4; border-radius:8px; padding:9px 10px; }
+  .mt-summary-chip .num { font-size:17px; font-weight:600; }
+  .mt-summary-chip .lbl { font-size:9.5px; text-transform:uppercase; letter-spacing:0.05em; color:#5B6470; margin-top:1px; }
+
+  .mt-route-card { background:#fff; border:1px solid #E0DACC; border-radius:10px; padding:16px; margin-bottom:20px; }
+  .mt-date-row { display:flex; flex-direction: column; gap:8px; margin-bottom:14px; }
+  .mt-date-input, .mt-purpose-input { border:1px solid #E0DACC; border-radius:6px; padding:9px 10px; font-size:16px; color:#1B2A41; background:#FAF8F4; width:100%; }
+  .mt-purpose-input::placeholder { color:#8B93A0; }
+
+  .mt-banner { border-radius:8px; padding:11px 13px; font-size:12px; margin-bottom:14px; display:flex; align-items:flex-start; gap:7px; }
+  .mt-banner.warn { background:#FBF3E7; border:1px solid #ECD3A8; color:#8A5A1F; }
+
+  .mt-route-line { position:relative; padding-left:26px; }
+  .mt-route-line::before { content:''; position:absolute; left:6px; top:10px; bottom:28px; width:2px; background: repeating-linear-gradient(to bottom, #E0DACC 0, #E0DACC 4px, transparent 4px, transparent 8px); }
+  .mt-stop { position:relative; display:flex; align-items:flex-start; gap:9px; margin-bottom:10px; }
+  .mt-dot { position:absolute; left:-26px; top:10px; width:15px; height:15px; border-radius:50%; border:3px solid #FAF8F4; box-shadow:0 0 0 1px #E0DACC; flex-shrink:0; }
+  .mt-dot.home { background:#4A7C7C; }
+  .mt-dot.pending { background:#C8893A; }
+  .mt-dot.set { background:#1B2A41; }
+  .mt-stop-input-wrap { flex:1; position:relative; min-width:0; }
+  .mt-stop-input { width:100%; border:1px solid #E0DACC; border-radius:6px; padding:10px 12px; font-size:16px; color:#1B2A41; background:#FAF8F4; outline:none; }
+  .mt-stop-input:focus { border-color:#4A7C7C; background:#fff; }
+  .mt-stop-static { width:100%; border-radius:6px; padding:10px 12px; font-size:13.5px; background:#F1EDE4; color:#5B6470; }
+  .mt-stop-meta { font-size:11px; color:#5B6470; margin-top:3px; padding-left:2px; }
+  .mt-stop-meta.warn { color:#C8893A; }
+  .mt-remove-stop { background:none; border:none; padding:8px 2px; color:#8B93A0; flex-shrink:0; }
+
+  .mt-suggestions { position:absolute; top:calc(100% + 4px); left:0; right:0; background:#fff; border:1px solid #E0DACC; border-radius:8px; box-shadow:0 10px 30px rgba(27,42,65,0.18); z-index:20; max-height:260px; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  .mt-suggestion-item { padding:11px 13px; font-size:13.5px; border-bottom:1px solid #F1EDE4; }
+  .mt-suggestion-item:last-child { border-bottom:none; }
+  .mt-suggestion-name { font-weight:600; color:#1B2A41; }
+  .mt-suggestion-addr { font-size:11px; color:#5B6470; margin-top:1px; }
+  .mt-suggestion-new { padding:11px 13px; font-size:12.5px; color:#3A6363; font-weight:600; }
+
+  .mt-add-stop-btn { background:none; border:1px dashed #8B93A0; border-radius:6px; color:#5B6470; font-size:13px; font-weight:500; padding:9px 14px; display:flex; align-items:center; gap:6px; margin-top:2px; width:100%; justify-content:center; }
+
+  .mt-leg-row { margin-bottom:10px; padding-bottom:10px; border-bottom: 1px solid #F1EDE4; }
+  .mt-leg-row:last-child { border-bottom: none; }
+  .mt-leg-names { font-size:12px; color:#5B6470; margin-bottom:6px; }
+  .mt-leg-names b { color:#1B2A41; font-weight:600; }
+  .mt-leg-actions { display:flex; align-items:center; gap:8px; }
+  .mt-leg-link { flex:1; text-align:center; font-size:12.5px; font-weight:600; color:#fff; background:#4A7C7C; border-radius:6px; padding:9px 10px; text-decoration:none; display:block; }
+  .mt-leg-input { width:64px; flex-shrink:0; padding:9px 8px; border-radius:6px; border:1px solid #E0DACC; font-size:16px; text-align:center; background:#FAF8F4; }
+
+  .mt-route-footer { display:flex; align-items:center; justify-content:space-between; margin-top:16px; padding-top:14px; border-top:1px solid #E0DACC; gap: 10px; }
+  .mt-total-miles { font-size:13px; color:#5B6470; }
+  .mt-total-miles strong { color:#1B2A41; font-size:17px; }
+  .mt-save-btn { background:#1B2A41; color:#FAF8F4; border:none; border-radius:8px; padding:12px 20px; font-size:14px; font-weight:600; flex-shrink:0; }
+  .mt-save-btn:disabled { background:#8B93A0; }
+
+  .mt-log-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .mt-export-btn { background:#fff; border:1px solid #E0DACC; border-radius:7px; padding:8px 12px; font-size:12px; font-weight:600; color:#1B2A41; display:flex; align-items:center; gap:5px; }
+
+  .mt-trip-card { background:#fff; border:1px solid #E0DACC; border-radius:10px; padding:14px 16px; margin-bottom:9px; }
+  .mt-trip-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:7px; gap: 10px;}
+  .mt-trip-date { font-size:14.5px; font-weight:600; }
+  .mt-trip-purpose { font-size:11.5px; color:#5B6470; margin-top:2px; }
+  .mt-trip-miles { font-size:18px; font-weight:600; color:#3A6363; white-space:nowrap; }
+  .mt-trip-miles span { font-size:10.5px; color:#5B6470; font-weight:500; font-family:-apple-system,sans-serif; }
+  .mt-trip-route { font-size:12px; color:#5B6470; line-height:1.7; }
+  .mt-trip-route b { color:#1B2A41; font-weight:500; }
+  .mt-trip-actions { margin-top:8px; }
+  .mt-trip-actions button { background:none; border:none; padding:0; font-size:11px; color:#8B93A0; font-weight:600; }
+
+  .mt-empty { text-align:center; padding:30px 20px; color:#8B93A0; font-size:13px; }
+
+  .mt-toast { position:fixed; bottom: calc(20px + env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%); background:#1B2A41; color:#FAF8F4; padding:11px 18px; border-radius:8px; font-size:13px; box-shadow:0 8px 24px rgba(0,0,0,0.25); z-index:100; white-space:nowrap; }
+
+  .mt-install-hint { background:#fff; border:1px solid #E0DACC; border-radius:10px; padding:14px 16px; margin-bottom:18px; font-size:12.5px; color:#5B6470; display:flex; gap:10px; align-items:flex-start; }
+  .mt-install-hint button.dismiss { background:none; border:none; color:#8B93A0; font-size:18px; line-height:1; padding:0 0 0 8px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- Data ----------
+  var STARTER_FACILITIES = [
+    { id: "f1", name: "Mayo Clinic Florida", city: "Jacksonville", address: "4500 San Pablo Rd S, Jacksonville, FL 32224" },
+    { id: "f2", name: "Baptist Medical Center Jacksonville", city: "Jacksonville", address: "800 Prudential Dr, Jacksonville, FL 32207" },
+    { id: "f3", name: "Baptist Medical Center South", city: "Jacksonville", address: "14550 Old St Augustine Rd, Jacksonville, FL 32258" },
+    { id: "f4", name: "UF Health Jacksonville", city: "Jacksonville", address: "655 W 8th St, Jacksonville, FL 32209" },
+    { id: "f5", name: "Ascension St. Vincent's Riverside", city: "Jacksonville", address: "1 Shircliff Way, Jacksonville, FL 32204" },
+    { id: "f6", name: "HCA Florida Orange Park Hospital", city: "Orange Park", address: "2001 Kingsley Ave, Orange Park, FL 32073" },
+    { id: "f7", name: "UF Health Flagler Hospital (formerly Flagler Hospital)", city: "St. Augustine", address: "400 Health Park Blvd, St. Augustine, FL 32086" },
+    { id: "f8", name: "UF Health Shands Hospital", city: "Gainesville", address: "1600 SW Archer Rd, Gainesville, FL 32610" },
+    { id: "f9", name: "HCA Florida North Florida Hospital (formerly North Florida Regional)", city: "Gainesville", address: "6500 W Newberry Rd, Gainesville, FL 32605" },
+    { id: "f10", name: "AdventHealth Ocala", city: "Ocala", address: "1500 SW 1st Ave, Ocala, FL 34471" },
+    { id: "f11", name: "HCA Florida Ocala Hospital (formerly Ocala Regional Medical Center)", city: "Ocala", address: "1431 SW 1st Ave, Ocala, FL 34471" },
+    { id: "f12", name: "Tallahassee Memorial HealthCare", city: "Tallahassee", address: "1300 Miccosukee Rd, Tallahassee, FL 32308" },
+    { id: "f13", name: "HCA Florida Capital Hospital (formerly Capital Regional)", city: "Tallahassee", address: "2626 Capital Medical Blvd, Tallahassee, FL 32308" },
+    { id: "f14", name: "AdventHealth Palm Coast", city: "Palm Coast", address: "60 Memorial Medical Pkwy, Palm Coast, FL 32164" },
+    { id: "f15", name: "AdventHealth Palm Coast Parkway", city: "Palm Coast", address: "1 AdventHealth Way, Palm Coast, FL 32137" }
+  ];
+
+  var LS_KEYS = { home: "mt_home_address", facilities: "mt_facilities", trips: "mt_trips", hintDismissed: "mt_install_hint_dismissed", mileageRate: "mt_mileage_rate" };
+  var DEFAULT_IRS_RATE = 0.725; // 2026 IRS standard business mileage rate (72.5¢/mi), effective Jan 1 2026
+
+  // ---------- State ----------
+  var state = {
+    home: "",
+    facilities: STARTER_FACILITIES.slice(),
+    trips: [],
+    showInstallHint: false,
+    date: todayStr(),
+    purpose: "",
+    stops: [{ name: "", address: "", facilityId: null }],
+    legMiles: {},
+    openSuggestIndex: null,
+    mileageRate: DEFAULT_IRS_RATE,
+    editingRate: false
+  };
+
+  // ---------- Storage helpers ----------
+  function lsGet(key) {
+    try {
+      var v = localStorage.getItem(key);
+      return v ? JSON.parse(v) : null;
+    } catch (e) { return null; }
+  }
+  function lsSet(key, val) {
+    try { localStorage.setItem(key, JSON.stringify(val)); return true; } catch (e) { return false; }
+  }
+
+  // ---------- Utils ----------
+  function uid() { return Math.random().toString(36).slice(2, 10); }
+  function todayStr() { return new Date().toISOString().slice(0, 10); }
+  function fmtDate(d) {
+    var dt = new Date(d + "T12:00:00");
+    return dt.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+  }
+  function mapsUrl(origin, dest) {
+    return "https://www.google.com/maps/dir/?api=1&origin=" + encodeURIComponent(origin) + "&destination=" + encodeURIComponent(dest) + "&travelmode=driving";
+  }
+
+  // ---------- Google Routes lookup (new Routes API — replaces deprecated DirectionsService) ----------
+  var routesLibraryPromise = null;
+  function getRoutesLibrary() {
+    if (typeof google === "undefined" || !google.maps || !google.maps.importLibrary) return Promise.reject(new Error("Maps not loaded"));
+    if (!routesLibraryPromise) routesLibraryPromise = google.maps.importLibrary("routes");
+    return routesLibraryPromise;
+  }
+
+  function fetchLegMiles(origin, destination) {
+    return getRoutesLibrary().then(function (routesLib) {
+      return routesLib.Route.computeRoutes({
+        origin: origin,
+        destination: destination,
+        travelMode: google.maps.TravelMode.DRIVING,
+        fields: ["distanceMeters"]
+      });
+    }).then(function (result) {
+      if (result && typeof result.distanceMeters === "number") {
+        var miles = result.distanceMeters / 1609.344;
+        return Math.round(miles * 10) / 10;
+      }
+      // Some response shapes nest under routes[0]
+      if (result && result.routes && result.routes[0] && typeof result.routes[0].distanceMeters === "number") {
+        var miles2 = result.routes[0].distanceMeters / 1609.344;
+        return Math.round(miles2 * 10) / 10;
+      }
+      throw new Error("No distance in response");
+    });
+  }
+
+  function autoFillAllLegs() {
+    var legs = getLegs();
+    if (legs.length === 0) return;
+    var btn = document.getElementById("mt-autofill-btn");
+    if (btn) { btn.disabled = true; btn.textContent = "Looking up mileage…"; }
+
+    // Hard safety timeout — guarantees the button never hangs forever,
+    // even if a promise in the chain never settles for some reason.
+    var settled = false;
+    var safetyTimer = setTimeout(function () {
+      if (settled) return;
+      settled = true;
+      if (btn) { btn.disabled = false; btn.textContent = "Auto-fill from Maps"; }
+      showToast("Lookup timed out — check your API key/billing, or enter mileage manually");
+    }, 15000);
+
+    if (typeof google === "undefined" || !google.maps || !google.maps.importLibrary) {
+      clearTimeout(safetyTimer);
+      settled = true;
+      if (btn) { btn.disabled = false; btn.textContent = "Auto-fill from Maps"; }
+      showToast("Google Maps didn't load — check your API key, then try again");
+      return;
+    }
+
+    var chain = Promise.resolve();
+    var anyFailed = false;
+    legs.forEach(function (leg) {
+      chain = chain.then(function () {
+        return fetchLegMiles(leg.from.address, leg.to.address)
+          .then(function (miles) {
+            state.legMiles[leg.index] = String(miles);
+          })
+          .catch(function (err) {
+            anyFailed = true;
+            var msg = (err && err.message) ? err.message : String(err);
+            console.error("Leg lookup failed: " + leg.from.name + " -> " + leg.to.name + " : " + msg);
+          });
+      });
+    });
+
+    chain.then(function () {
+      if (settled) return;
+      settled = true;
+      clearTimeout(safetyTimer);
+      render();
+      if (anyFailed) {
+        showToast("Some legs couldn't be auto-filled — check them below");
+      } else {
+        showToast("Mileage auto-filled from Google Maps");
+      }
+    }).catch(function (err) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(safetyTimer);
+      var msg = (err && err.message) ? err.message : String(err);
+      console.error("Auto-fill chain error: " + msg);
+      if (btn) { btn.disabled = false; btn.textContent = "Auto-fill from Maps"; }
+      showToast("Auto-fill failed — enter mileage manually below");
+    });
+  }
+
+  function escAttr(s) { return String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+  function escHtml(s) { return escAttr(s); }
+  function isStandalone() {
+    return window.navigator.standalone === true || (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+  }
+
+  var toastTimer = null;
+  function showToast(msg) {
+    var el = document.getElementById("mt-toast");
+    if (!el) return;
+    el.textContent = msg;
+    el.style.display = "block";
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.style.display = "none"; }, 2200);
+  }
+
+  // ---------- Load from storage ----------
+  function loadState() {
+    var h = lsGet(LS_KEYS.home);
+    if (h) state.home = h;
+    var f = lsGet(LS_KEYS.facilities);
+    if (f && Array.isArray(f)) {
+      var names = {};
+      f.forEach(function (p) { names[p.name] = true; });
+      var merged = f.concat(STARTER_FACILITIES.filter(function (s) { return !names[s.name]; }));
+      state.facilities = merged;
+    }
+    var t = lsGet(LS_KEYS.trips);
+    if (t && Array.isArray(t)) state.trips = t;
+
+    var r = lsGet(LS_KEYS.mileageRate);
+    if (r && typeof r === "number" && r > 0) state.mileageRate = r;
+
+    if (!isStandalone()) {
+      var dismissed = lsGet(LS_KEYS.hintDismissed);
+      if (!dismissed) state.showInstallHint = true;
+    }
+  }
+
+  // ---------- Derived data ----------
+  function getFullRoute() {
+    var route = [{ name: "Home", address: state.home, isHome: true }];
+    state.stops.forEach(function (s) { route.push(s); });
+    route.push({ name: "Home", address: state.home, isHome: true });
+    return route;
+  }
+  function getLegs() {
+    var route = getFullRoute();
+    var legs = [];
+    for (var i = 0; i < route.length - 1; i++) {
+      legs.push({ from: route[i], to: route[i + 1], index: i });
+    }
+    return legs;
+  }
+  function getTotalMiles() {
+    var legs = getLegs();
+    var sum = 0;
+    legs.forEach(function (leg) {
+      var v = parseFloat(state.legMiles[leg.index]);
+      if (!isNaN(v)) sum += v;
+    });
+    return sum;
+  }
+  function allLegsReady() {
+    return getLegs().every(function (leg) { return leg.from.address && leg.to.address; });
+  }
+  function allLegsHaveMileage() {
+    return getLegs().every(function (leg) { return !isNaN(parseFloat(state.legMiles[leg.index])); });
+  }
+  function canSaveTrip() {
+    if (!state.home) return false;
+    var hasOneStop = state.stops.some(function (s) { return s.name.trim(); });
+    if (!hasOneStop) return false;
+    return state.stops.every(function (s) { return s.name.trim() ? !!s.address : true; });
+  }
+
+  // ---------- Actions ----------
+  function saveHome(val) {
+    val = val.trim();
+    if (!val) return;
+    state.home = val;
+    var ok = lsSet(LS_KEYS.home, val);
+    showToast(ok ? "Home address saved" : "Couldn't save — try again");
+    render();
+  }
+
+  function addFacility(f) {
+    state.facilities = [f].concat(state.facilities);
+    lsSet(LS_KEYS.facilities, state.facilities);
+  }
+
+  function updateStop(index, data) {
+    state.stops[index] = Object.assign({}, state.stops[index], data);
+  }
+
+  function removeStop(index) {
+    state.stops.splice(index, 1);
+    var newLegMiles = {};
+    Object.keys(state.legMiles).forEach(function (k) {
+      var ki = parseInt(k, 10);
+      if (ki < index) newLegMiles[ki] = state.legMiles[k];
+      else if (ki > index) newLegMiles[ki - 1] = state.legMiles[k];
+    });
+    state.legMiles = newLegMiles;
+    render();
+  }
+
+  function addStopRow() {
+    state.stops.push({ name: "", address: "", facilityId: null });
+    render();
+  }
+
+  function resetForm() {
+    state.date = todayStr();
+    state.purpose = "";
+    state.stops = [{ name: "", address: "", facilityId: null }];
+    state.legMiles = {};
+  }
+
+  function saveTrip() {
+    if (!canSaveTrip()) return;
+    var legs = getLegs();
+    var tripLegs = legs.map(function (leg) {
+      return { from: leg.from.name, fromAddress: leg.from.address, to: leg.to.name, toAddress: leg.to.address, miles: parseFloat(state.legMiles[leg.index]) || 0 };
+    });
+    var total = Math.round(getTotalMiles() * 10) / 10;
+    var trip = {
+      id: uid(),
+      date: state.date,
+      purpose: state.purpose.trim() || "Business travel — facility visit(s)",
+      stops: state.stops.filter(function (s) { return s.name.trim(); }).map(function (s) { return s.name; }),
+      legs: tripLegs,
+      totalMiles: total,
+      createdAt: Date.now()
+    };
+    state.trips = [trip].concat(state.trips).sort(function (a, b) {
+      if (a.date !== b.date) return b.date < a.date ? -1 : 1;
+      return b.createdAt - a.createdAt;
+    });
+    lsSet(LS_KEYS.trips, state.trips);
+    showToast("Trip saved — " + trip.totalMiles + " mi logged");
+    resetForm();
+    render();
+  }
+
+  function deleteTrip(id) {
+    state.trips = state.trips.filter(function (t) { return t.id !== id; });
+    lsSet(LS_KEYS.trips, state.trips);
+    showToast("Trip removed");
+    render();
+  }
+
+  function exportCSV() {
+    var header = "Date,Business Purpose,Stops,Total Miles,Rate,Est. Deduction\n";
+    var rows = state.trips.map(function (t) {
+      var deduction = (Math.round(t.totalMiles * state.mileageRate * 100) / 100).toFixed(2);
+      return '"' + t.date + '","' + t.purpose.replace(/"/g, '""') + '","' + t.stops.join(" -> ").replace(/"/g, '""') + '",' + t.totalMiles + ',$' + state.mileageRate.toFixed(3) + ',$' + deduction;
+    }).join("\n");
+    var totalMiles = Math.round(state.trips.reduce(function(s,t){return s+t.totalMiles;},0) * 10) / 10;
+    var totalDeduction = (Math.round(totalMiles * state.mileageRate * 100) / 100).toFixed(2);
+    var csv = header + rows + "\n\n,,Total,," + totalMiles + ",$" + totalDeduction;
+    var blob = new Blob([csv], { type: "text/csv" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "mileage-log-" + todayStr() + ".csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast("CSV downloaded");
+  }
+
+  function dismissInstallHint() {
+    state.showInstallHint = false;
+    lsSet(LS_KEYS.hintDismissed, true);
+    render();
+  }
+
+  // ---------- Rendering (string-based, re-rendered on state change) ----------
+  function renderSummary() {
+    if (state.trips.length === 0) return "";
+    var now = new Date();
+    var thisMonth = state.trips.filter(function (t) {
+      var d = new Date(t.date + "T12:00:00");
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    });
+    var ytd = state.trips.filter(function (t) {
+      return new Date(t.date + "T12:00:00").getFullYear() === now.getFullYear();
+    });
+    var monthMiles = Math.round(thisMonth.reduce(function (s, t) { return s + t.totalMiles; }, 0) * 10) / 10;
+    var ytdMiles = Math.round(ytd.reduce(function (s, t) { return s + t.totalMiles; }, 0) * 10) / 10;
+    var ytdDeduction = Math.round(ytdMiles * state.mileageRate * 100) / 100;
+    var rateDisplay = (state.mileageRate * 100).toFixed(1) + "\u00A2";
+
+    var rateChip;
+    if (state.editingRate) {
+      rateChip =
+        '<div class="mt-summary-chip" style="display:flex;flex-direction:column;gap:4px;">' +
+          '<div style="font-size:9.5px;text-transform:uppercase;letter-spacing:0.05em;color:#5B6470;">Rate (\u00A2/mi)</div>' +
+          '<div style="display:flex;gap:4px;align-items:center;">' +
+            '<input type="number" step="0.1" min="0" id="mt-rate-input" value="' + (state.mileageRate * 100).toFixed(1) + '" style="width:48px;padding:3px 4px;border-radius:4px;border:1px solid #E0DACC;font-size:13px;" />' +
+            '<button data-action="save-rate" style="background:#1B2A41;color:#fff;border:none;border-radius:4px;padding:4px 7px;font-size:11px;font-weight:600;">Set</button>' +
+          '</div>' +
+        '</div>';
+    } else {
+      rateChip =
+        '<div class="mt-summary-chip" data-action="edit-rate" style="cursor:pointer;">' +
+          '<div class="num mt-serif">$' + ytdDeduction.toLocaleString() + '</div>' +
+          '<div class="lbl">Est. YTD @ ' + rateDisplay + '/mi \u270E</div>' +
+        '</div>';
+    }
+
+    return (
+      '<div class="mt-summary-bar">' +
+        '<div class="mt-summary-chip"><div class="num mt-serif">' + monthMiles + '</div><div class="lbl">This month</div></div>' +
+        '<div class="mt-summary-chip"><div class="num mt-serif">' + ytdMiles + '</div><div class="lbl">YTD miles</div></div>' +
+        rateChip +
+      '</div>'
+    );
+  }
+
+  function renderStopRow(stop, index) {
+    var dotClass = stop.address ? "set" : "pending";
+    var suggestionsHtml = "";
+    if (state.openSuggestIndex === index) {
+      var query = (stop.name || "").toLowerCase();
+      var filtered = state.facilities.filter(function (f) {
+        return !query || f.name.toLowerCase().indexOf(query) !== -1 || f.city.toLowerCase().indexOf(query) !== -1;
+      }).slice(0, 6);
+      var items = filtered.map(function (f) {
+        return '<div class="mt-suggestion-item" data-action="select-facility" data-stop="' + index + '" data-facility="' + escAttr(f.id) + '">' +
+          '<div class="mt-suggestion-name">' + escHtml(f.name) + '</div>' +
+          '<div class="mt-suggestion-addr">' + escHtml(f.address) + '</div>' +
+        '</div>';
+      }).join("");
+      var trimmed = (stop.name || "").trim();
+      var exists = state.facilities.some(function (f) { return f.name.toLowerCase() === trimmed.toLowerCase(); });
+      var addNew = (trimmed && !exists)
+        ? '<div class="mt-suggestion-new" data-action="add-new-facility" data-stop="' + index + '">+ Save "' + escHtml(trimmed) + '" as a new facility</div>'
+        : "";
+      suggestionsHtml = '<div class="mt-suggestions">' + items + addNew + '</div>';
+    }
+
+    var metaHtml = "";
+    if (stop.address) {
+      metaHtml = '<div class="mt-stop-meta">' + escHtml(stop.address) + '</div>';
+    } else if (stop.name) {
+      metaHtml = '<div class="mt-stop-meta warn">No address saved — pick from list or add one</div>';
+    }
+
+    var removeBtn = state.stops.length > 1
+      ? '<button class="mt-remove-stop" data-action="remove-stop" data-stop="' + index + '">' +
+          '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>' +
+        '</button>'
+      : "";
+
+    return (
+      '<div class="mt-stop">' +
+        '<div class="mt-dot ' + dotClass + '"></div>' +
+        '<div class="mt-stop-input-wrap">' +
+          '<input class="mt-stop-input" data-action="stop-input" data-stop="' + index + '" placeholder="Stop ' + (index + 1) + ' — hospital or facility" value="' + escAttr(stop.name || "") + '" autocomplete="off" />' +
+          suggestionsHtml +
+          metaHtml +
+        '</div>' +
+        removeBtn +
+      '</div>'
+    );
+  }
+
+  function renderRouteBuilder() {
+    var homeStopHtml =
+      '<div class="mt-stop">' +
+        '<div class="mt-dot home"></div>' +
+        '<div class="mt-stop-input-wrap">' +
+          '<div class="mt-stop-static">\uD83C\uDFE0 Home' + (state.home ? (" — " + escHtml(state.home)) : " (set address above)") + '</div>' +
+        '</div>' +
+      '</div>';
+
+    var stopsHtml = state.stops.map(function (s, i) { return renderStopRow(s, i); }).join("");
+
+    var legsHtml = "";
+    if (allLegsReady()) {
+      var legs = getLegs();
+      var legRows = legs.map(function (leg) {
+        var val = state.legMiles[leg.index] || "";
+        return (
+          '<div class="mt-leg-row">' +
+            '<div class="mt-leg-names"><b>' + escHtml(leg.from.name) + '</b> \u2192 <b>' + escHtml(leg.to.name) + '</b></div>' +
+            '<div class="mt-leg-actions">' +
+              '<a class="mt-leg-link" href="' + mapsUrl(leg.from.address, leg.to.address) + '" target="_blank" rel="noopener noreferrer">Open in Maps \u2197</a>' +
+              '<input type="number" inputmode="decimal" step="0.1" min="0" placeholder="mi" class="mt-leg-input" data-action="leg-miles" data-leg="' + leg.index + '" value="' + escAttr(val) + '" />' +
+            '</div>' +
+          '</div>'
+        );
+      }).join("");
+      legsHtml =
+        '<div style="margin-top:16px;padding-top:14px;border-top:1px solid #E0DACC;">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">' +
+            '<div class="mt-section-label" style="margin-bottom:0;">Mileage per leg</div>' +
+            '<button id="mt-autofill-btn" data-action="autofill-legs" style="background:#4A7C7C;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:11.5px;font-weight:600;">Auto-fill from Maps</button>' +
+          '</div>' +
+          legRows +
+          '<div class="mt-banner warn" style="margin-bottom:0;"><span>\u2139\uFE0F</span><span>Tap "Auto-fill from Maps" to pull driving mileage automatically, or open each leg in Maps and type it in yourself.</span></div>' +
+        '</div>';
+    }
+
+    var totalMiles = Math.round(getTotalMiles() * 10) / 10;
+    var missingNote = (!allLegsHaveMileage() && allLegsReady())
+      ? '<div style="color:#C8893A;font-size:11px;">missing leg mileage</div>'
+      : "";
+
+    var homeWarning = !state.home
+      ? '<div class="mt-banner warn"><span>\u26A0\uFE0F</span><span>Set your home address above first.</span></div>'
+      : "";
+
+    return (
+      '<div class="mt-section-label">Log a trip</div>' +
+      '<div class="mt-route-card">' +
+        '<div class="mt-date-row">' +
+          '<input type="date" class="mt-date-input" id="mt-date-input" value="' + escAttr(state.date) + '" />' +
+          '<input class="mt-purpose-input" id="mt-purpose-input" placeholder="Business purpose (e.g. Surgical case coverage)" value="' + escAttr(state.purpose) + '" />' +
+        '</div>' +
+        homeWarning +
+        '<div class="mt-route-line">' +
+          homeStopHtml +
+          stopsHtml +
+          homeStopHtml +
+        '</div>' +
+        '<button class="mt-add-stop-btn" data-action="add-stop">' +
+          '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>' +
+          'Add another stop' +
+        '</button>' +
+        legsHtml +
+        '<div class="mt-route-footer">' +
+          '<div class="mt-total-miles">Total: <strong class="mt-serif">' + totalMiles + ' mi</strong>' + missingNote + '</div>' +
+          '<button class="mt-save-btn" id="mt-save-btn" ' + (canSaveTrip() ? "" : "disabled") + '>Save trip</button>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  function renderTripLog() {
+    var header =
+      '<div class="mt-log-header">' +
+        '<div class="mt-section-label" style="margin-bottom:0;">Trip log (' + state.trips.length + ')</div>' +
+        (state.trips.length > 0
+          ? '<button class="mt-export-btn" data-action="export-csv"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M3 19h18"/></svg>Export CSV</button>'
+          : "") +
+      '</div>';
+
+    if (state.trips.length === 0) {
+      return header + '<div class="mt-empty">No trips logged yet. Build your first route above.</div>';
+    }
+
+    var cards = state.trips.map(function (trip) {
+      var stopsHtml = trip.stops.map(function (s) { return '<b>' + escHtml(s) + '</b> \u2192 '; }).join("");
+      return (
+        '<div class="mt-trip-card">' +
+          '<div class="mt-trip-top">' +
+            '<div>' +
+              '<div class="mt-trip-date mt-serif">' + fmtDate(trip.date) + '</div>' +
+              '<div class="mt-trip-purpose">' + escHtml(trip.purpose) + '</div>' +
+            '</div>' +
+            '<div class="mt-trip-miles mt-serif">' + trip.totalMiles + '<span> mi</span><div style="font-size:11px;color:#4A7C7C;font-weight:600;font-family:-apple-system,sans-serif;text-align:right;">$' + (Math.round(trip.totalMiles * state.mileageRate * 100) / 100).toFixed(2) + '</div></div>' +
+          '</div>' +
+          '<div class="mt-trip-route"><b>Home</b> \u2192 ' + stopsHtml + '<b>Home</b></div>' +
+          '<div class="mt-trip-actions"><button data-action="delete-trip" data-trip="' + trip.id + '">Delete</button></div>' +
+        '</div>'
+      );
+    }).join("");
+
+    return header + cards;
+  }
+
+  function renderInstallHint() {
+    if (!state.showInstallHint) return "";
+    return (
+      '<div class="mt-install-hint">' +
+        '<span style="font-size:18px;">\uD83D\uDCF2</span>' +
+        '<div style="flex:1;"><strong>Add this to your Home Screen:</strong> tap the Share icon in Safari, then "Add to Home Screen." It\'ll open full-screen like a normal app from then on, and your data stays saved on this phone.</div>' +
+        '<button class="dismiss" data-action="dismiss-hint">\u00D7</button>' +
+      '</div>'
+    );
+  }
+
+  function render() {
+    var root = document.getElementById("root");
+    var html =
+      '<div class="mt-wrap">' +
+        '<div class="mt-header">' +
+          '<div class="ring1"></div><div class="ring2"></div>' +
+          '<div class="mt-eyebrow">North Florida Route Log</div>' +
+          '<h1 class="mt-title mt-serif">Mileage Tracker</h1>' +
+          '<div class="mt-sub">Home-based loops, logged for IRS mileage records.</div>' +
+        '</div>' +
+        '<div class="mt-body">' +
+          renderInstallHint() +
+          '<div class="mt-home-box">' +
+            '<div class="mt-home-row">' +
+              '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#4A7C7C" stroke-width="2"><path d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h12a1 1 0 001-1V10"/></svg>' +
+              '<input class="mt-home-input" id="mt-home-input" placeholder="Your home address" value="' + escAttr(state.home) + '" />' +
+            '</div>' +
+            (state.home ? '<div class="mt-home-saved">Saved as your starting point</div>' : "") +
+          '</div>' +
+          renderSummary() +
+          renderRouteBuilder() +
+          renderTripLog() +
+        '</div>' +
+      '</div>' +
+      '<div class="mt-toast" id="mt-toast" style="display:none;"></div>';
+
+    root.innerHTML = html;
+    attachListeners();
+  }
+
+  // ---------- Event delegation ----------
+  function attachListeners() {
+    var root = document.getElementById("root");
+
+    // Home input
+    var homeInput = document.getElementById("mt-home-input");
+    if (homeInput) {
+      homeInput.addEventListener("blur", function (e) { saveHome(e.target.value); });
+      homeInput.addEventListener("keydown", function (e) { if (e.key === "Enter") e.target.blur(); });
+    }
+
+    // Date / purpose inputs (don't full re-render on every keystroke to preserve focus)
+    var dateInput = document.getElementById("mt-date-input");
+    if (dateInput) dateInput.addEventListener("change", function (e) { state.date = e.target.value; });
+    var purposeInput = document.getElementById("mt-purpose-input");
+    if (purposeInput) purposeInput.addEventListener("input", function (e) { state.purpose = e.target.value; });
+
+    // Save trip
+    var saveBtn = document.getElementById("mt-save-btn");
+    if (saveBtn) saveBtn.addEventListener("click", saveTrip);
+
+    // Stop name inputs
+    root.querySelectorAll('[data-action="stop-input"]').forEach(function (input) {
+      var idx = parseInt(input.getAttribute("data-stop"), 10);
+      input.addEventListener("input", function (e) {
+        updateStop(idx, { name: e.target.value, address: "", facilityId: null });
+        state.openSuggestIndex = idx;
+        render();
+        // restore focus + caret to end
+        var el = document.querySelector('[data-action="stop-input"][data-stop="' + idx + '"]');
+        if (el) { el.focus(); var len = el.value.length; el.setSelectionRange(len, len); }
+      });
+      input.addEventListener("focus", function () {
+        // Only re-render to open the suggestions dropdown if it isn't already open
+        // for this stop — re-rendering on every focus event (including the one we
+        // trigger ourselves via el.focus() below) causes an infinite render loop.
+        if (state.openSuggestIndex === idx) return;
+        state.openSuggestIndex = idx;
+        render();
+        var el = document.querySelector('[data-action="stop-input"][data-stop="' + idx + '"]');
+        if (el) { el.focus(); var len = el.value.length; el.setSelectionRange(len, len); }
+      });
+    });
+
+    // Facility suggestion select
+    root.querySelectorAll('[data-action="select-facility"]').forEach(function (item) {
+      item.addEventListener("click", function () {
+        var idx = parseInt(item.getAttribute("data-stop"), 10);
+        var facId = item.getAttribute("data-facility");
+        var fac = state.facilities.filter(function (f) { return f.id === facId; })[0];
+        if (fac) {
+          updateStop(idx, { name: fac.name, address: fac.address, facilityId: fac.id });
+          state.openSuggestIndex = null;
+          render();
+        }
+      });
+    });
+
+    // Add new facility
+    root.querySelectorAll('[data-action="add-new-facility"]').forEach(function (item) {
+      item.addEventListener("click", function () {
+        var idx = parseInt(item.getAttribute("data-stop"), 10);
+        var name = (state.stops[idx].name || "").trim();
+        if (!name) return;
+        var addr = window.prompt('Address for "' + name + '"?\n(Tip: search it in Maps, copy the address)');
+        if (addr && addr.trim()) {
+          var newFac = { id: uid(), name: name, city: "", address: addr.trim() };
+          addFacility(newFac);
+          updateStop(idx, { name: name, address: addr.trim(), facilityId: newFac.id });
+        } else {
+          updateStop(idx, { name: name, address: "", facilityId: null });
+        }
+        state.openSuggestIndex = null;
+        render();
+      });
+    });
+
+    // Remove stop
+    root.querySelectorAll('[data-action="remove-stop"]').forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        removeStop(parseInt(btn.getAttribute("data-stop"), 10));
+      });
+    });
+
+    // Add stop
+    var addStopBtn = root.querySelector('[data-action="add-stop"]');
+    if (addStopBtn) addStopBtn.addEventListener("click", addStopRow);
+
+    // Leg miles inputs
+    root.querySelectorAll('[data-action="leg-miles"]').forEach(function (input) {
+      var legIdx = parseInt(input.getAttribute("data-leg"), 10);
+      input.addEventListener("input", function (e) {
+        state.legMiles[legIdx] = e.target.value;
+        // update total + footer without full rerender to preserve focus
+        var totalEl = root.querySelector(".mt-total-miles strong");
+        if (totalEl) totalEl.textContent = (Math.round(getTotalMiles() * 10) / 10) + " mi";
+        var saveB = document.getElementById("mt-save-btn");
+        if (saveB) saveB.disabled = !canSaveTrip();
+      });
+    });
+
+    // Mileage rate edit
+    var editRateEl = root.querySelector('[data-action="edit-rate"]');
+    if (editRateEl) editRateEl.addEventListener("click", function () {
+      state.editingRate = true;
+      render();
+      var input = document.getElementById("mt-rate-input");
+      if (input) { input.focus(); input.select(); }
+    });
+    var saveRateBtn = root.querySelector('[data-action="save-rate"]');
+    if (saveRateBtn) saveRateBtn.addEventListener("click", function () {
+      var input = document.getElementById("mt-rate-input");
+      var cents = parseFloat(input ? input.value : "");
+      if (!isNaN(cents) && cents > 0) {
+        state.mileageRate = cents / 100;
+        lsSet(LS_KEYS.mileageRate, state.mileageRate);
+        showToast("Mileage rate set to " + cents.toFixed(1) + "\u00A2/mi");
+      }
+      state.editingRate = false;
+      render();
+    });
+    var rateInputEl = document.getElementById("mt-rate-input");
+    if (rateInputEl) rateInputEl.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { var btn = document.querySelector('[data-action="save-rate"]'); if (btn) btn.click(); }
+    });
+
+    // Auto-fill mileage from Google Maps
+    var autofillBtn = root.querySelector('[data-action="autofill-legs"]');
+    if (autofillBtn) autofillBtn.addEventListener("click", autoFillAllLegs);
+
+    // Export CSV
+    var exportBtn = root.querySelector('[data-action="export-csv"]');
+    if (exportBtn) exportBtn.addEventListener("click", exportCSV);
+
+    // Delete trip
+    root.querySelectorAll('[data-action="delete-trip"]').forEach(function (btn) {
+      btn.addEventListener("click", function () { deleteTrip(btn.getAttribute("data-trip")); });
+    });
+
+    // Dismiss install hint
+    var dismissBtn = root.querySelector('[data-action="dismiss-hint"]');
+    if (dismissBtn) dismissBtn.addEventListener("click", dismissInstallHint);
+  }
+
+  // Click outside to close suggestions — attached ONCE (not inside attachListeners,
+  // which runs on every render() and would otherwise stack a new listener each time).
+  document.addEventListener("click", function (e) {
+    if (state.openSuggestIndex === null) return;
+    var openInput = document.querySelector('[data-action="stop-input"][data-stop="' + state.openSuggestIndex + '"]');
+    var openSugg = openInput ? openInput.parentElement.querySelector(".mt-suggestions") : null;
+    var clickedInput = e.target === openInput;
+    var clickedSugg = openSugg && openSugg.contains(e.target);
+    if (!clickedInput && !clickedSugg) {
+      state.openSuggestIndex = null;
+      render();
+    }
+  }, true);
+
+  // ---------- Init ----------
+  loadState();
+  render();
+})();
+</script>
+</body>
+</html>
